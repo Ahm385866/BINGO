@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Bingo Blitz</title>
+<script src="https://cdn.jsdelivr.net/npm/@remix-gg/sdk@latest/dist/index.min.js"></script>
+<style>
+*{box-sizing:border-box;user-select:none;-webkit-user-select:none;font-family:Segoe UI,Roboto,Arial,sans-serif}
+html,body{margin:0;min-height:100%;background:#090d16;color:#f8fafc}
+body{padding:calc(10px + var(--top,0px)) calc(10px + var(--right,0px)) calc(10px + var(--bottom,0px)) calc(10px + var(--left,0px));display:flex;flex-direction:column;align-items:center;touch-action:pan-y}
+h2{margin:5px 0 10px;color:#38bdf8;font-size:22px;letter-spacing:1px;text-shadow:0 0 10px #38bdf8aa}
+.controls,.card-box{border-radius:12px;width:100%;max-width:400px}
+.controls{background:#111827;padding:12px;display:flex;flex-direction:column;align-items:center;box-shadow:0 4px 15px #0008;border:1px solid #1f2937;margin-bottom:12px}
+
+/* Bag Container & Animation */
+.bag-container {
+  position: relative;
+  width: 140px;
+  height: 110px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.bag-graphic {
+  position: absolute;
+  bottom: 0;
+  width: 115px;
+  height: 95px;
+  z-index: 1;
+  filter: drop-shadow(0 8px 12px rgba(0,0,0,0.6));
+  pointer-events: none;
+}
+
+.drawn-ball {
+  position: absolute;
+  top: 5px;
+  z-index: 2;
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle at 30% 30%, #ff4d4d, #991b1b);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: bold;
+  box-shadow: 0 0 18px #ff4d4d88, 0 6px 12px rgba(0,0,0,0.5);
+  border: 3px solid #fff;
+  color: #fff;
+}
+
+.drawn-ball.pull {
+  animation: pullFromBag 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes pullFromBag {
+  0% {
+    transform: translateY(40px) scale(0.2);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(-12px) scale(1.15);
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(4px) scale(0.95);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.btn{background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:0;padding:12px 20px;border-radius:8px;font-size:16px;font-weight:bold;width:100%;touch-action:manipulation;cursor:pointer;box-shadow:0 4px 12px #10b98155;transition:transform .1s}
+.btn:active,.card-select-btn:active{transform:scale(.98)}
+.btn:disabled{background:#475569;box-shadow:none;cursor:not-allowed}
+.players-container{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;max-width:400px;align-items:start}
+.card-box{border:2px solid #64748b;padding:8px;transition:all .3s}
+.players-container .user-card{order:3;grid-column:1 / -1;justify-self:center;width:calc(50% - 5px)}
+
+/* Vibrantly Colored Cards */
+.card-box:nth-child(1), .start-card:nth-child(1) {
+  background: linear-gradient(145deg, #0e5a6f, #083344);
+  border-color: #06b6d4;
+  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.35);
+}
+.card-box:nth-child(2), .start-card:nth-child(2) {
+  background: linear-gradient(145deg, #6b21a8, #3b0764);
+  border-color: #c084fc;
+  box-shadow: 0 4px 16px rgba(192, 132, 252, 0.35);
+}
+.card-box:nth-child(3), .start-card:nth-child(3) {
+  background: linear-gradient(145deg, #9a3412, #451a03);
+  border-color: #f97316;
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35);
+}
+.card-box:nth-child(4), .start-card:nth-child(4) {
+  background: linear-gradient(145deg, #065f46, #022c22);
+  border-color: #10b981;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+}
+
+.card-box.user-card {
+  border: 3px solid #facc15;
+  background: linear-gradient(145deg, #0284c7, #075985);
+  box-shadow: 0 0 24px rgba(250, 204, 21, 0.6), 0 0 10px rgba(56, 189, 248, 0.5);
+  transform: scale(1.03);
+  position: relative;
+  z-index: 2;
+}
+.card-box.user-card .card-header {
+  color: #fef08a;
+  text-shadow: 0 0 10px #facc15;
+}
+
+.card-box.winner {
+  animation: winnerGlow 0.6s infinite alternate;
+  z-index: 10;
+}
+
+@keyframes winnerGlow {
+  0% {
+    border-color: #facc15;
+    box-shadow: 0 0 20px #facc15, 0 0 40px #facc15, inset 0 0 15px #facc15;
+    transform: scale(1.04);
+  }
+  50% {
+    border-color: #ff2a2a;
+    box-shadow: 0 0 30px #ff2a2a, 0 0 60px #ff2a2a, inset 0 0 20px #ff2a2a;
+    transform: scale(1.07);
+  }
+  100% {
+    border-color: #10b981;
+    box-shadow: 0 0 25px #10b981, 0 0 50px #10b981, inset 0 0 15px #10b981;
+    transform: scale(1.04);
+  }
+}
+
+.card-box.milestone{border-color:#facc15;box-shadow:0 0 22px #facc15dd;transform:scale(1.02)}
+.cell.milestone-cell{background:linear-gradient(145deg,#facc15,#eab308);color:#000;box-shadow:0 0 10px #facc15;font-weight:900}
+.card-header{display:flex;justify-content:center;align-items:center;position:relative;font-size:13px;font-weight:bold;margin-bottom:6px;text-align:center}
+.bingo-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.cell{background:rgba(15,23,42,0.65);border:1px solid rgba(255,255,255,0.12);border-radius:4px;text-align:center;padding:7px 1px;font-size:12px;font-weight:bold;min-height:32px;display:flex;align-items:center;justify-content:center;color:#f1f5f9}
+.cell.marked{background:linear-gradient(145deg,#10b981,#059669);color:#ffffff;box-shadow:0 0 10px #10b981aa, inset 0 0 4px #ffffff66;border-color:#34d399}
+
+.user-card .bingo-grid{position:relative;z-index:3}
+.status-msg{margin-top:4px;font-size:13px;font-weight:bold;color:#facc15;text-align:center;min-height:36px;display:flex;align-items:center;justify-content:center;text-shadow:0 0 8px rgba(250,204,21,0.3)}
+.money{color:#fef08a;font-size:13px}
+.start-screen{position:fixed;inset:0;z-index:20;background:linear-gradient(160deg,#090d16,#1e1b4b);display:flex;flex-direction:column;align-items:center;padding:24px 14px calc(20px + var(--bottom,0px));overflow:auto}
+.start-screen h1{margin:10px 0 4px;color:#facc15;font-size:42px;letter-spacing:3px;text-shadow:0 3px 0 #92400e,0 0 25px #f59e0b}
+.start-screen p{margin:0 0 10px;color:#bae6fd;text-align:center;font-size:14px}
+.info-note{background:#1e1b4b;border:1px dashed #38bdf8;border-radius:10px;padding:10px 14px;margin:0 0 12px;max-width:400px;text-align:center;font-size:13px;color:#e2e8f0;line-height:1.4;box-shadow:0 4px 12px #0005}
+.info-note strong{color:#facc15}
+.choice-title{font-weight:bold;color:#f8fafc;margin:4px 0 6px;font-size:15px}
+.start-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;max-width:400px;margin-top:8px;margin-bottom:16px}
+.start-card{border-radius:10px;padding:8px;cursor:pointer;touch-action:manipulation;transition:transform .2s}
+.start-card.selected{border-color:#facc15!important;box-shadow:0 0 20px #facc15bb!important;transform:scale(1.04)}
+.start-card strong{display:block;text-align:center;font-size:12px;margin-bottom:6px;color:#fff}
+.start-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
+.start-cell{background:rgba(15,23,42,0.65);border-radius:3px;text-align:center;padding:7px 1px;font-size:11px;font-weight:bold;color:#f1f5f9}
+.start-card.selected .start-cell{background:rgba(250,204,21,0.25);color:#fef08a}
+.start-screen .btn{max-width:400px;margin-top:auto}
+.hidden{display:none!important}
+.money-fly-layer{position:fixed;inset:0;z-index:50;pointer-events:none;overflow:hidden}
+.money-fly{position:fixed;width:50px;height:32px;border:2px solid #b45309;border-radius:6px;background:linear-gradient(135deg,#fef08a,#facc15);color:#14532d;font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px #000a;animation:moneyFly 900ms cubic-bezier(.2,.8,.25,1) forwards}
+@keyframes moneyFly{0%{transform:translate(0,0) rotate(-12deg) scale(.7);opacity:0}12%{opacity:1}45%{transform:translate(var(--dx),calc(var(--dy) - 34px)) rotate(12deg) scale(1.15);opacity:1}100%{transform:translate(var(--dx),var(--dy)) rotate(0) scale(.75);opacity:0}}
+.tombala-choice{position:fixed;inset:0;z-index:80;background:#020617ee;display:flex;align-items:center;justify-content:center;padding:20px}
+.tombala-choice-box{width:min(360px,100%);background:linear-gradient(145deg,#1e293b,#0f172a);border:2px solid #facc15;border-radius:16px;padding:22px;box-shadow:0 0 35px #facc15aa;text-align:center}
+.tombala-choice-box h3{margin:0 0 8px;color:#facc15;font-size:26px;text-shadow:0 0 10px #facc15aa}
+.tombala-choice-box p{margin:0 0 18px;color:#e2e8f0;font-size:15px;line-height:1.4}
+.tombala-choice-actions{display:flex;gap:10px;flex-direction:column}
+.tombala-choice-actions .btn{margin:0}
+.save-score-btn{background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 4px 12px #f59e0b55}
+.tombala-saved{color:#4ade80!important}
+.elim-msg{color:#f87171!important}
+</style>
+</head>
+<body>
+<div class="start-screen" id="startScreen">
+  <h1>BINGO</h1>
+  <p>Try your luck, complete lines!</p>
+  <div class="info-note">
+    💡 <strong>Rule:</strong> You start with a $1000 balance. If your balance reaches $0, you are eliminated and lose the game. As long as you have funds, you can keep playing rounds!
+  </div>
+  <div class="choice-title">Select your card</div>
+  <div class="start-cards" id="startCards"></div>
+  <button class="btn" id="continueBtn">Continue</button>
+</div>
+<h2>BINGO</h2>
+<div class="players-container" id="playersContainer"></div>
+<div class="controls">
+  <div class="status-msg" id="gameStatus">Preparing your card...</div>
+  <div class="bag-container">
+    <svg class="bag-graphic" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="bagGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#b91c1c"/>
+          <stop offset="50%" stop-color="#7f1d1d"/>
+          <stop offset="100%" stop-color="#450a0a"/>
+        </linearGradient>
+        <linearGradient id="goldRim" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#fef08a"/>
+          <stop offset="50%" stop-color="#facc15"/>
+          <stop offset="100%" stop-color="#ca8a04"/>
+        </linearGradient>
+      </defs>
+      <ellipse cx="50" cy="94" rx="38" ry="5" fill="rgba(0,0,0,0.5)"/>
+      <path d="M 22 42 C 8 62 12 90 50 90 C 88 90 92 62 78 42 C 70 32 68 28 76 22 C 82 17 72 10 50 14 C 28 10 18 17 24 22 C 32 28 30 32 22 42 Z" fill="url(#bagGrad)" stroke="url(#goldRim)" stroke-width="2.5"/>
+      <path d="M 31 30 C 40 34 60 34 69 30" stroke="url(#goldRim)" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <path d="M 46 32 C 43 42 38 48 35 52 M 50 32 C 52 42 56 48 59 52" stroke="url(#goldRim)" stroke-width="3" stroke-linecap="round" fill="none"/>
+      <circle cx="48" cy="32" r="3.5" fill="#facc15"/>
+    </svg>
+    <div class="drawn-ball" id="drawnBall">-</div>
+  </div>
+  <button class="btn" id="drawBtn" disabled>Draw Number</button>
+</div>
+<script>
+const sdk=window.RemixSDK,TOTAL_NUMBERS=90;
+let drawnNumbers=[],bag=[],gameActive=false,gameEnded=false,paused=false,selectedStartCard=[],startChoices=[],firstCinkoPaid=false,secondCinkoPaid=false;
+
+const players=[
+  {id:1,name:'YOU',numbers:[],marked:[],announced:0,money:1000,isUser:true,eliminated:false},
+  {id:2,name:'Bot 1',numbers:[],marked:[],announced:0,money:1000,isUser:false,eliminated:false},
+  {id:3,name:'Bot 2',numbers:[],marked:[],announced:0,money:1000,isUser:false,eliminated:false}
+];
+
+function haptic(type='light'){try{sdk.hapticFeedback(type)}catch(e){}}
+
+let audioCtx=null,musicTimer=null,musicMuted=false,musicStep=0,musicNodes=[];
+// Short, clearly audible "dattiri-dattat" arcade melody.
+const melody=[{n:392,t:0.18},{n:392,t:0.18},{n:523,t:0.28},{n:440,t:0.18},{n:440,t:0.18},{n:587,t:0.28},{n:523,t:0.18},{n:440,t:0.18},{n:392,t:0.36},{n:330,t:0.18},{n:392,t:0.18},{n:440,t:0.3}];
+async function startMusic(){
+  if(musicMuted)return;
+  try{
+    const AudioCtor=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtor)return;
+    audioCtx=audioCtx||new AudioCtor();
+    if(audioCtx.state==='suspended')await audioCtx.resume();
+    clearTimeout(musicTimer); musicStep=0;
+    const playNote=()=>{
+      if(musicMuted||!audioCtx||audioCtx.state!=='running')return;
+      const beat=melody[musicStep%melody.length],now=audioCtx.currentTime;
+      const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+      const bass=audioCtx.createOscillator(),bassGain=audioCtx.createGain();
+      osc.type='square'; osc.frequency.setValueAtTime(beat.n,now);
+      bass.type='triangle'; bass.frequency.setValueAtTime(beat.n/2,now);
+      gain.gain.setValueAtTime(0.0001,now);
+      gain.gain.linearRampToValueAtTime(0.28,now+0.018);
+      gain.gain.exponentialRampToValueAtTime(0.0001,now+beat.t-0.02);
+      bassGain.gain.setValueAtTime(0.0001,now);
+      bassGain.gain.linearRampToValueAtTime(0.11,now+0.02);
+      bassGain.gain.exponentialRampToValueAtTime(0.0001,now+beat.t-0.03);
+      osc.connect(gain);gain.connect(audioCtx.destination);
+      bass.connect(bassGain);bassGain.connect(audioCtx.destination);
+      osc.start(now);bass.start(now);osc.stop(now+beat.t);bass.stop(now+beat.t);
+      musicNodes.push(osc,bass);
+      musicStep++;
+      musicTimer=setTimeout(playNote,beat.t*1000);
+    };
+    playNote();
+  }catch(e){musicTimer=null;}
+}
+function stopMusic(){
+  clearTimeout(musicTimer);musicTimer=null;
+  musicNodes.forEach(node=>{try{node.stop()}catch(e){}});musicNodes=[];
+  if(audioCtx&&audioCtx.state==='running')audioCtx.suspend().catch(()=>{});
+}
+
+function generateCardNumbers(){
+  const nums=[];
+  while(nums.length<15){
+    const n=Math.floor(Math.random()*TOTAL_NUMBERS)+1;
+    if(!nums.includes(n))nums.push(n);
+  }
+  return nums.sort((a,b)=>a-b);
+}
+
+function isRowCompleted(p,rowIndex){
+  const rowNumbers=p.numbers.slice(rowIndex*5,rowIndex*5+5);
+  return rowNumbers.length===5&&rowNumbers.every(n=>p.marked.includes(n));
+}
+
+function completedRows(p){
+  let count=0;
+  for(let r=0;r<3;r++){
+    if(isRowCompleted(p,r))count++;
+  }
+  return count;
+}
+
+function activePlayers(){return players.filter(p=>!p.eliminated)}
+
+function renderCards(){
+  const container=document.getElementById('playersContainer');
+  container.innerHTML='';
+  activePlayers().forEach(p=>{
+    if(p.isUser&&p.numbers.length!==15)p.numbers=generateCardNumbers();
+    const rows=completedRows(p),box=document.createElement('div');
+    box.className='card-box '+(p.isUser?'user-card ':'')+(p.isWinner?'winner ':'')+(rows>p.announced?'milestone':'');
+    box.id='card-'+p.id;
+    const header=document.createElement('div');
+    header.className='card-header';
+    header.innerHTML='<span>'+p.name+' - <b class="money">$'+p.money+'</b></span>';
+    box.appendChild(header);
+    const grid=document.createElement('div');
+    grid.className='bingo-grid';
+    p.numbers.forEach((n,i)=>{
+      const cell=document.createElement('div');
+      const rowIndex=Math.floor(i/5);
+      const rowDone=isRowCompleted(p,rowIndex);
+      cell.className='cell '+(p.marked.includes(n)?'marked ':'')+(rowDone?'milestone-cell':'');
+      cell.textContent=String(n);
+      grid.appendChild(cell);
+    });
+    box.appendChild(grid);
+    container.appendChild(box);
+  });
+}
+
+function initGame(){
+  bag=Array.from({length:TOTAL_NUMBERS},(_,i)=>i+1);
+  drawnNumbers=[];
+  gameEnded=false;paused=false;gameActive=true;
+  firstCinkoPaid=false;secondCinkoPaid=false;
+  players.forEach((p,i)=>{
+    if(i===0&&selectedStartCard.length===15)p.numbers=selectedStartCard.slice();
+    else p.numbers=generateCardNumbers();
+    p.marked=[];p.announced=0;p.money=1000;p.eliminated=false;p.isWinner=false;
+  });
+  const ballElem=document.getElementById('drawnBall');
+  ballElem.textContent='-';
+  ballElem.classList.remove('pull');
+  document.getElementById('drawBtn').disabled=false;
+  document.getElementById('drawBtn').textContent='Draw Number';
+  document.getElementById('gameStatus').className='status-msg';
+  document.getElementById('gameStatus').textContent='Draw started! Draw a number.';
+  renderCards();
+}
+
+function animateMoneyTransfer(winner,amount,contributors){
+  const layer=document.createElement('div');
+  layer.className='money-fly-layer';
+  document.body.appendChild(layer);
+  const target=document.getElementById('card-'+winner.id)?.getBoundingClientRect();
+  if(!target){layer.remove();return}
+  contributors.forEach((p,index)=>{
+    const source=document.getElementById('card-'+p.id)?.getBoundingClientRect();
+    if(!source)return;
+    const bill=document.createElement('div');
+    bill.className='money-fly';
+    bill.textContent='$'+amount;
+    bill.style.left=(source.left+source.width/2-25)+'px';
+    bill.style.top=(source.top+source.height/2-16)+'px';
+    bill.style.setProperty('--dx',(target.left+target.width/2-source.left-source.width/2)+'px');
+    bill.style.setProperty('--dy',(target.top+target.height/2-source.top-source.height/2)+'px');
+    bill.style.animationDelay=(index*90)+'ms';
+    layer.appendChild(bill);
+  });
+  setTimeout(()=>layer.remove(),1500);
+}
+
+function payPrize(winner,perCardAmount){
+  const contributors=activePlayers().filter(p=>p!==winner);
+  animateMoneyTransfer(winner,perCardAmount,contributors);
+  contributors.forEach(p=>{p.money-=perCardAmount});
+  winner.money+=perCardAmount*contributors.length;
+  const eliminated=contributors.filter(p=>p.money<=0);
+  eliminated.forEach(p=>{p.money=0;p.eliminated=true});
+  renderCards();
+  return {contributors,eliminated};
+}
+
+function drawNumber(){
+  if(!gameActive||paused||!bag.length)return;
+  const n=bag.splice(Math.floor(Math.random()*bag.length),1)[0];
+  drawnNumbers.push(n);
+
+  const ballElem=document.getElementById('drawnBall');
+  ballElem.textContent=n;
+  ballElem.classList.remove('pull');
+  void ballElem.offsetWidth;
+  ballElem.classList.add('pull');
+
+  players.forEach(p=>{
+    if(!p.eliminated&&p.numbers.includes(n)&&!p.marked.includes(n))p.marked.push(n);
+  });
+  haptic('medium');
+  renderCards();
+  checkWinner();
+}
+
+function resumeDraw(){
+  if(!paused||gameEnded)return;
+  paused=false;
+  document.getElementById('drawBtn').textContent='Draw Number';
+  document.getElementById('gameStatus').className='status-msg';
+  document.getElementById('gameStatus').textContent='Drawing continues! Draw a number.';
+  renderCards();
+}
+
+function currentScore(){return Math.max(0,players[0].money-1000)}
+
+function endGame(message,isLoss){
+  gameActive=false;paused=false;gameEnded=true;
+  document.getElementById('drawBtn').disabled=true;
+  const status=document.getElementById('gameStatus');
+  status.className='status-msg'+(isLoss?' elim-msg':' tombala-saved');
+  status.textContent=message;
+  haptic(isLoss?'medium':'success');
+  try{sdk.singlePlayer.actions.gameOver({score:currentScore()})}catch(e){}
+}
+
+function saveTombalaScore(overlay){
+  const score=currentScore();
+  gameActive=false;paused=false;gameEnded=true;
+  document.getElementById('drawBtn').disabled=true;
+  if(overlay)overlay.remove();
+  document.getElementById('gameStatus').className='status-msg tombala-saved';
+  document.getElementById('gameStatus').textContent='Score saved! Game over. Final Profit: $'+score;
+  haptic('success');
+  try{sdk.singlePlayer.actions.gameOver({score})}catch(e){}
+}
+
+function startNewRound(){
+  const overlay=document.querySelector('.tombala-choice');
+  if(overlay)overlay.remove();
+  bag=Array.from({length:TOTAL_NUMBERS},(_,i)=>i+1);
+  drawnNumbers=[];
+  gameEnded=false;paused=false;gameActive=true;
+  firstCinkoPaid=false;secondCinkoPaid=false;
+  players.forEach(p=>{if(!p.eliminated){p.marked=[];p.announced=0;p.isWinner=false}});
+  const ballElem=document.getElementById('drawnBall');
+  ballElem.textContent='-';
+  ballElem.classList.remove('pull');
+  document.getElementById('drawBtn').disabled=false;
+  document.getElementById('drawBtn').textContent='Draw Number';
+  document.getElementById('gameStatus').className='status-msg';
+  document.getElementById('gameStatus').textContent='New round started! Numbers redrawn.';
+  renderCards();
+  haptic('medium');
+}
+
+function showTombalaChoice(winner){
+  paused=true;
+  document.getElementById('drawBtn').disabled=true;
+  const overlay=document.createElement('div');
+  overlay.className='tombala-choice';
+  overlay.innerHTML='<div class="tombala-choice-box"><h3>BINGO!</h3><p>'+winner.name+' got BINGO!<br>You can start a new round or save your score and end the game.</p><div class="tombala-choice-actions"><button class="btn" data-action="continue">Continue Playing</button><button class="btn save-score-btn" data-action="save">Save Score</button></div></div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('[data-action="continue"]').addEventListener('click',startNewRound);
+  overlay.querySelector('[data-action="save"]').addEventListener('click',()=>saveTombalaScore(overlay));
+  haptic('success');
+}
+
+function eliminationNote(eliminated){
+  if(!eliminated.length)return '';
+  return ' '+eliminated.map(p=>p.name).join(', ')+' ran out of money and was eliminated.';
+}
+
+function handlePostPayoutState(eliminated,prefix){
+  if(players[0].eliminated){
+    endGame(prefix+' Your card ran out of money. You are eliminated! Game over.',true);
+    return true;
+  }
+  if(activePlayers().length<=1){
+    endGame(prefix+' All other opponents were eliminated. Game over! Final Profit: $'+currentScore(),false);
+    return true;
+  }
+  return false;
+}
+
+function checkWinner(){
+  if(gameEnded)return;
+
+  // 1. BINGO Check
+  const winner=players.find(p=>!p.eliminated&&completedRows(p)===3);
+  if(winner){
+    gameActive=false;
+    paused=true;
+    winner.isWinner=true;
+    const {contributors,eliminated}=payPrize(winner,300);
+    
+    let countdown=5;
+    const msgPrefix=winner.name+' got BINGO! Won $300 prize per card from '+contributors.length+' card(s).'+eliminationNote(eliminated);
+    
+    if(handlePostPayoutState(eliminated,msgPrefix))return;
+
+    document.getElementById('drawBtn').disabled=true;
+    const statusElem=document.getElementById('gameStatus');
+    statusElem.textContent=msgPrefix+' Transitioning to choices... ('+countdown+'s)';
+    haptic('success');
+
+    const interval=setInterval(()=>{
+      countdown--;
+      if(countdown>0){
+        statusElem.textContent=msgPrefix+' Transitioning to choices... ('+countdown+'s)';
+      }else{
+        clearInterval(interval);
+        showTombalaChoice(winner);
+      }
+    },1000);
+
+    return;
+  }
+
+  // 2. 2ND LINE Check
+  if(!secondCinkoPaid){
+    const secondCandidate=players.find(p=>!p.eliminated&&completedRows(p)>=2);
+    if(secondCandidate){
+      firstCinkoPaid=true;
+      secondCinkoPaid=true;
+      secondCandidate.announced=Math.max(secondCandidate.announced,2);
+      const {contributors,eliminated}=payPrize(secondCandidate,200);
+      const totalAward=200*contributors.length;
+      const msg=secondCandidate.name+' completed 2ND LINE! Awarded $'+totalAward+' to '+secondCandidate.name+'.'+eliminationNote(eliminated);
+      if(handlePostPayoutState(eliminated,msg))return;
+      paused=true;
+      document.getElementById('drawBtn').textContent='Continue';
+      document.getElementById('gameStatus').textContent=msg+' Press button to continue.';
+      haptic('success');
+      return;
+    }
+  }
+
+  // 3. 1ST LINE Check
+  if(!firstCinkoPaid){
+    const firstCandidate=players.find(p=>!p.eliminated&&completedRows(p)>=1);
+    if(firstCandidate){
+      firstCinkoPaid=true;
+      firstCandidate.announced=Math.max(firstCandidate.announced,1);
+      const {contributors,eliminated}=payPrize(firstCandidate,100);
+      const totalAward=100*contributors.length;
+      const msg=firstCandidate.name+' completed 1ST LINE! Awarded $'+totalAward+' to '+firstCandidate.name+'.'+eliminationNote(eliminated);
+      if(handlePostPayoutState(eliminated,msg))return;
+      paused=true;
+      document.getElementById('drawBtn').textContent='Continue';
+      document.getElementById('gameStatus').textContent=msg+' Press button to continue.';
+      haptic('success');
+      return;
+    }
+  }
+
+  if(!bag.length){
+    endGame('Game ended in a tie! Final Profit: $'+currentScore(),false);
+  }
+}
+
+function renderStartCards(){
+  const area=document.getElementById('startCards');
+  area.innerHTML='';
+  startChoices.forEach((card,index)=>{
+    const box=document.createElement('div');
+    box.className='start-card'+(index===0?' selected':'');
+    box.addEventListener('click',()=>{
+      selectedStartCard=card.slice();
+      document.querySelectorAll('.start-card').forEach((el,i)=>el.classList.toggle('selected',i===index));
+      haptic('light');
+    });
+    const title=document.createElement('strong');
+    title.textContent='Card '+(index+1);
+    box.appendChild(title);
+    const grid=document.createElement('div');
+    grid.className='start-grid';
+    card.forEach(n=>{
+      const cell=document.createElement('div');
+      cell.className='start-cell';
+      cell.textContent=n;
+      grid.appendChild(cell);
+    });
+    box.appendChild(grid);
+    area.appendChild(box);
+  });
+  selectedStartCard=startChoices[0].slice();
+}
+
+function beginGame(){
+  document.getElementById('startScreen').classList.add('hidden');
+  haptic('medium');
+  startMusic();
+  initGame();
+}
+
+function handleDraw(){
+  if(paused){resumeDraw();return}
+  drawNumber();
+}
+
+document.getElementById('drawBtn').addEventListener('click',handleDraw);
+document.getElementById('continueBtn').addEventListener('click',beginGame);
+startChoices=[generateCardNumbers(),generateCardNumbers(),generateCardNumbers()];
+renderStartCards();
+
+(async()=>{
+  try{
+    await sdk.ready();
+    const inset=sdk.gameInfo?.contentSafeAreaInset||{};
+    document.documentElement.style.setProperty('--top',(inset.top||0)+'px');
+    document.documentElement.style.setProperty('--right',(inset.right||0)+'px');
+    document.documentElement.style.setProperty('--bottom',(inset.bottom||0)+'px');
+    document.documentElement.style.setProperty('--left',(inset.left||0)+'px');
+    sdk.onPlay(()=>initGame());
+    sdk.onPlayAgain(()=>initGame());
+    sdk.onToggleMute((data)=>{
+      musicMuted=!!data?.isMuted;
+      if(musicMuted)stopMusic();
+      else if(gameActive&&!gameEnded)startMusic();
+    });
+    initGame();
+  }catch(e){initGame()}
+})();
+</script>
+</body>
+</html>
